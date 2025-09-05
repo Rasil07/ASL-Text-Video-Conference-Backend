@@ -13,6 +13,13 @@ class AuthController {
     const user = await this.authService.login(email, password);
     return res.status(200).json(user);
   }
+
+  async register(req: Request, res: Response) {
+    const { email, name, password } = req.body;
+
+    const signedUp = await this.authService.register({ email, name, password });
+    return res.status(200).json(signedUp);
+  }
 }
 
 export default new AuthController();

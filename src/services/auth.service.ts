@@ -3,6 +3,15 @@ import bcrypt from "bcrypt";
 import JWT from "../helpers/jwt";
 import { UserFilter } from "../helpers/userFilter";
 
+type USER_LOGIN = {
+  email: string;
+  password: string;
+};
+
+type USER_REGISTER = USER_LOGIN & {
+  name: string;
+};
+
 class AuthService {
   private userModel: typeof User;
 
@@ -31,6 +40,20 @@ class AuthService {
       user: filteredUser,
       token: new JWT().generateToken({
         user: filteredUser,
+      }),
+    };
+  }
+  async register(payload: USER_REGISTER) {
+    const newUser = await this.userModel.create(payload);
+
+    if (!newUser) throw new Error("Error while creating new user.");
+
+    const filterUserData = UserFilter.filterUser(newUser);
+
+    return {
+      user: filterUserData,
+      token: new JWT().generateToken({
+        user: filterUserData,
       }),
     };
   }

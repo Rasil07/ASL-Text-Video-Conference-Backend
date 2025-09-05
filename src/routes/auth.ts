@@ -4,10 +4,13 @@ import AuthController from "../controller/auth.controller";
 
 const router = Router();
 
-router.get("/", verifyRequest, (req: Request, res: Response) => {
+router.post("/verify-token", verifyRequest, (req: Request, res: Response) => {
+  if (!req.decoded) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
   res.json({
     success: true,
-    message: "Auth endpoint - Coming soon",
+    message: "Token verified",
   });
 });
 
@@ -15,11 +18,8 @@ router.post("/login", (req: Request, res: Response) =>
   AuthController.login(req, res)
 );
 
-router.post("/register", (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    message: "Register endpoint - Coming soon",
-  });
-});
+router.post("/register", (req: Request, res: Response) =>
+  AuthController.register(req, res)
+);
 
 export default router;
