@@ -12,3 +12,5 @@ export const APP_CONFIG = {
   rtc_min_port: process.env.RTC_MIN_PORT,
   rtc_max_port: process.env.RTC_MAX_PORT,
 };
+
+export * from "./socket_events";

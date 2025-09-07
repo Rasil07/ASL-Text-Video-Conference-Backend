@@ -6,14 +6,21 @@ export const verifyRequest = async (
   res: Response,
   next: NextFunction
 ) => {
-  console.log(req);
   const token = req.headers.authorization?.split(" ")[1];
 
-  console.log({ token });
   if (!token) {
     return res.status(401).json({ message: "Unauthorized" });
   }
-  const decoded = new JWT().verifyToken(token);
-  req.decoded = decoded;
-  next();
+
+  try {
+    const decoded = new JWT().verifyToken(token);
+    req.decoded = decoded;
+    next();
+  } catch (err: any) {
+    // Handle expired or invalid JWT
+    if (err.name === "TokenExpiredError") {
+      return res.status(401).json({ message: "Token expired" });
+    }
+    return res.status(401).json({ message: "Invalid token" });
+  }
 };

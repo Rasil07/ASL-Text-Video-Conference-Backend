@@ -5,13 +5,14 @@ import morgan from "morgan";
 import dotenv from "dotenv";
 import { errorHandler } from "./middleware/errorHandler";
 import { notFoundHandler } from "./middleware/notFoundHandler";
-import { healthRouter } from "./routes/health";
+
 import { apiRouter } from "./routes/api";
 import connectDB from "./database/connectDB";
 import { APP_CONFIG } from "./config";
 import http from "http";
 import { Server } from "socket.io";
-import registerMeeting from "./webRTC/meeting";
+
+import registerRoomHandlers from "./webRTC/roomHandler";
 // Load environment variables
 dotenv.config();
 
@@ -94,9 +95,47 @@ const io = new Server(server, {
 
 app.set("io", io);
 
+import jwt from "jsonwebtoken";
+
+io.use((socket, next) => {
+  // Expect JWT in query param or in auth header
+  const token =
+    socket.handshake.auth?.token ||
+    socket.handshake.headers?.authorization?.split(" ")[1] ||
+    socket.handshake.query?.token;
+
+  console.log("token", token);
+
+  if (!token) {
+    // No token present, set user as null and continue
+
+    socket.decoded = null;
+    return next();
+  }
+
+  try {
+    // Replace 'your_jwt_secret' with your actual secret or use env variable
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "your_jwt_secret"
+    );
+
+    console.log("decoded", decoded);
+    // Attach user info to socket for later use
+
+    socket.decoded = decoded;
+    next();
+  } catch (err) {
+    // Invalid token, set user as null and continue
+    socket.decoded = null;
+    next();
+  }
+});
+
 io.on("connection", (socket) => {
-  console.log("a user connected");
-  registerMeeting(io, socket);
+  console.log(`User connected: ${socket.decoded?.user?.id || "anonymous"}`);
+  // registerMeeting(io, socket);
+  registerRoomHandlers(io, socket);
 });
 
 // Start server
