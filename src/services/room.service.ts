@@ -20,7 +20,6 @@ export interface CreateRoomData {
 
 export interface JoinRoomData {
   code: string;
-  peerId: string;
   userId: string;
   userName: string;
   userEmail: string;
@@ -58,7 +57,6 @@ export interface RoomData {
 }
 
 export interface ParticipantData {
-  peerId: string;
   userId: string;
   userName: string;
   userEmail: string;
@@ -77,15 +75,6 @@ export interface RoomSettings {
   isPrivate?: boolean;
   requirePassword?: boolean;
   password?: string;
-}
-
-export interface ParticipantData {
-  peerId: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  socketId: string;
-  isHost: boolean;
 }
 
 export interface ServiceResponse<T = any> {
@@ -141,20 +130,6 @@ class RoomService {
 
       // Persist to database (optional)
       await this.persistRoomToDatabase(data, meetingId);
-
-      // Add creator as first participant
-      this.addParticipant(meetingId, {
-        peerId: uuid(),
-        userId: data.host,
-        userName: data.hostName || "Host",
-        userEmail: data.hostEmail || "",
-        socketId: socket.id,
-        joinedAt: new Date(),
-        isHost: true,
-        isMuted: false,
-        isVideoEnabled: true,
-      });
-
       // Broadcast events
       this.broadcastRoomCreation(meetingId, data);
       this.broadcastRoomList();
@@ -166,26 +141,46 @@ class RoomService {
     }
   }
 
+  //  getParticipantData(roomState: RoomState, socketId: string): ParticipantData {
+
+  // }
+
   /**
    * Join an existing room
    */
   public async joinRoom(data: JoinRoomData, socket: Socket): Promise<RoomData> {
     try {
       const room = this.validateRoomForJoin(data.code);
-      this.validateUserNotInRoom(room, data.userId);
 
-      // Add participant
-      this.addParticipant(data.code, {
-        peerId: data.peerId,
-        userId: data.userId,
-        userName: data.userName,
-        userEmail: data.userEmail,
-        socketId: socket.id,
-        joinedAt: new Date(),
-        isHost: false,
-        isMuted: false,
-        isVideoEnabled: true,
-      });
+      console.log("Room", room);
+      const userNotInRoom = this.validateUserNotInRoom(room, data.userId);
+
+      console.log("User not in room", userNotInRoom);
+
+      if (!userNotInRoom) {
+        this.updateParticipant(data.code, {
+          userId: data.userId,
+          userName: data.userName,
+          userEmail: data.userEmail,
+          socketId: socket.id,
+          joinedAt: new Date(),
+          isHost: false,
+          isMuted: false,
+          isVideoEnabled: true,
+        });
+      } else {
+        // Add participant
+        this.addParticipant(data.code, {
+          userId: data.userId,
+          userName: data.userName,
+          userEmail: data.userEmail,
+          socketId: socket.id,
+          joinedAt: new Date(),
+          isHost: false,
+          isMuted: false,
+          isVideoEnabled: true,
+        });
+      }
 
       // Join socket room
       socket.join(data.code);
@@ -286,7 +281,6 @@ class RoomService {
     const room = this.getRoom(meetingId);
 
     return Array.from(room.peers.values()).map((peer) => ({
-      peerId: peer.peerId,
       userId: peer.userId,
       userName: peer.userName,
       userEmail: peer.userEmail,
@@ -437,13 +431,12 @@ class RoomService {
     return room;
   }
 
-  private validateUserNotInRoom(room: RoomState, userId: string): void {
+  private validateUserNotInRoom(room: RoomState, userId: string): boolean {
     const existingParticipant = Array.from(room.peers.values()).find(
       (peer) => peer.userId === userId
     );
-    if (existingParticipant) {
-      throw new Error("User is already in the room");
-    }
+
+    return !existingParticipant;
   }
 
   private validateHostPermission(room: RoomState, userId: string): void {
@@ -481,19 +474,51 @@ class RoomService {
   ): void {
     const room = this.getRoom(meetingId);
 
-    room.peers.set(participantData.peerId, {
-      peerId: participantData.peerId,
+    room.peers.set(participantData.userId, {
       userId: participantData.userId,
       userName: participantData.userName,
       userEmail: participantData.userEmail,
       socketId: participantData.socketId,
       isHost: participantData.isHost,
       isMuted: false,
+
       isVideoEnabled: true,
       joinedAt: new Date(),
+      transports: new Map(),
       producers: new Map(),
       consumers: new Map(),
     });
+  }
+
+  private updateParticipant(
+    meetingId: string,
+    participantData: ParticipantData
+  ): void {
+    const room = this.getRoom(meetingId);
+
+    const existingParticipant = room.peers.get(participantData.userId);
+
+    console.log("Update participant", { existingParticipant });
+    if (existingParticipant) {
+      existingParticipant.socketId = participantData.socketId;
+      existingParticipant.isHost = participantData.isHost;
+      existingParticipant.isMuted = participantData.isMuted;
+      existingParticipant.isVideoEnabled = participantData.isVideoEnabled;
+    } else {
+      room.peers.set(participantData.userId, {
+        userId: participantData.userId,
+        userName: participantData.userName,
+        userEmail: participantData.userEmail,
+        socketId: participantData.socketId,
+        isHost: participantData.isHost,
+        isMuted: false,
+        isVideoEnabled: true,
+        joinedAt: new Date(),
+        transports: new Map(),
+        producers: new Map(),
+        consumers: new Map(),
+      });
+    }
   }
 
   private removeParticipant(
@@ -502,7 +527,7 @@ class RoomService {
     socket: Socket,
     meetingId: string
   ): void {
-    room.peers.delete(participant.peerId);
+    room.peers.delete(participant.userId);
     socket.leave(meetingId);
   }
 
@@ -555,7 +580,7 @@ class RoomService {
     meetingId: string
   ): void {
     // Remove participant
-    room.peers.delete(participant.peerId);
+    room.peers.delete(participant.userId);
 
     // If host disconnected, transfer host or end room
     if (participant.isHost) {
@@ -570,7 +595,7 @@ class RoomService {
 
     // Notify other participants
     this.io.to(meetingId).emit(SOCKET_EVENTS.BROADCAST.PARTICIPANT_LEFT, {
-      peerId: participant.peerId,
+      socketId: participant.socketId,
       userId: participant.userId,
       userName: participant.userName,
     });
@@ -597,11 +622,27 @@ class RoomService {
     meetingId: string,
     data: JoinRoomData
   ): void {
+    // Get the producer ids from the rooms global variable and send them as well
+    let producers: any[] = [];
+    const room = rooms.get(meetingId);
+    if (room) {
+      const peer = room.peers.get(data.userId);
+      if (peer) {
+        producers = Array.from(peer.producers.values());
+      }
+    }
+
     socket.to(meetingId).emit(SOCKET_EVENTS.BROADCAST.PARTICIPANT_JOINED, {
-      peerId: data.peerId,
+      socketId: socket.id,
       userId: data.userId,
       userName: data.userName,
+      producers,
     });
+    // socket.to(meetingId).emit(SOCKET_EVENTS.BROADCAST.PARTICIPANT_JOINED, {
+    //   socketId: socket.id,
+    //   userId: data.userId,
+    //   userName: data.userName,
+    // });
   }
 
   private notifyParticipantLeft(
@@ -610,7 +651,7 @@ class RoomService {
     participant: any
   ): void {
     socket.to(meetingId).emit(SOCKET_EVENTS.BROADCAST.PARTICIPANT_LEFT, {
-      peerId: participant.peerId,
+      socketId: participant.socketId,
       userId: participant.userId,
       userName: participant.userName,
     });
@@ -623,13 +664,12 @@ class RoomService {
   /**
    * Create standardized room data structure from RoomState and database room
    */
-  private createRoomData(roomState: RoomState, dbRoom?: any): RoomData {
+  public createRoomData(roomState: RoomState, dbRoom?: any): RoomData {
     const participants = Array.from(roomState.peers.values()).map((peer) => ({
-      peerId: peer.peerId,
+      socketId: peer.socketId,
       userId: peer.userId,
       userName: peer.userName,
       userEmail: peer.userEmail,
-      socketId: peer.socketId,
       joinedAt: peer.joinedAt,
       isHost: peer.isHost,
       isMuted: peer.isMuted,

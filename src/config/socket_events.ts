@@ -45,6 +45,7 @@ export const SOCKET_EVENTS = {
     CLOSE_PRODUCER: "media:close-producer",
 
     // Consumer Management
+    CREATE_CONSUMER: "media:create-consumer",
     CONSUME: "media:consume",
     RESUME_CONSUMER: "media:resume-consumer",
     PAUSE_CONSUMER: "media:pause-consumer",
@@ -52,6 +53,7 @@ export const SOCKET_EVENTS = {
 
     // RTP Capabilities
     GET_RTP_CAPABILITIES: "media:get-rtp-capabilities",
+    SET_RTP_CAPABILITIES: "media:set-rtp-capabilities",
   },
 
   // ============================================================================
@@ -90,6 +92,10 @@ export const SOCKET_EVENTS = {
     PARTICIPANT_STATUS_UPDATED: "room:participant-status-updated",
     HOST_TRANSFERRED: "room:host-transferred",
 
+    // Media Events
+    NEW_PRODUCER: "room:new-producer",
+    PRODUCER_CLOSED: "room:producer-closed",
+
     // Meeting Events (Legacy)
     MEETING_CREATED: "meeting:created",
     MEETING_ENDED: "meeting:ended",
@@ -101,7 +107,6 @@ export const SOCKET_EVENTS = {
     TRANSPORT_CREATED: "media:transport-created",
     TRANSPORT_CONNECTED: "media:transport-connected",
     PRODUCER_CREATED: "media:producer-created",
-    PRODUCER_CLOSED: "media:producer-closed",
     CONSUMER_CREATED: "media:consumer-created",
     CONSUMER_RESUMED: "media:consumer-resumed",
     CONSUMER_PAUSED: "media:consumer-paused",
@@ -190,20 +195,30 @@ export const isValidSocketEvent = (
   return allEvents.includes(eventName as SocketEventName);
 };
 
-export const isRoomEvent = (eventName: string): boolean => {
-  return Object.values(SOCKET_EVENTS.ROOM).includes(eventName as any);
+export const isRoomEvent = (
+  eventName: string
+): eventName is (typeof SOCKET_EVENTS.ROOM)[keyof typeof SOCKET_EVENTS.ROOM] => {
+  return (Object.values(SOCKET_EVENTS.ROOM) as string[]).includes(eventName);
 };
 
-export const isMeetingEvent = (eventName: string): boolean => {
-  return Object.values(SOCKET_EVENTS.MEETING).includes(eventName as any);
+export const isMeetingEvent = (
+  eventName: string
+): eventName is (typeof SOCKET_EVENTS.MEETING)[keyof typeof SOCKET_EVENTS.MEETING] => {
+  return (Object.values(SOCKET_EVENTS.MEETING) as string[]).includes(eventName);
 };
 
-export const isMediaEvent = (eventName: string): boolean => {
-  return Object.values(SOCKET_EVENTS.MEDIA).includes(eventName as any);
+export const isMediaEvent = (
+  eventName: string
+): eventName is (typeof SOCKET_EVENTS.MEDIA)[keyof typeof SOCKET_EVENTS.MEDIA] => {
+  return (Object.values(SOCKET_EVENTS.MEDIA) as string[]).includes(eventName);
 };
 
-export const isBroadcastEvent = (eventName: string): boolean => {
-  return Object.values(SOCKET_EVENTS.BROADCAST).includes(eventName as any);
+export const isBroadcastEvent = (
+  eventName: string
+): eventName is (typeof SOCKET_EVENTS.BROADCAST)[keyof typeof SOCKET_EVENTS.BROADCAST] => {
+  return (Object.values(SOCKET_EVENTS.BROADCAST) as string[]).includes(
+    eventName
+  );
 };
 
 // ============================================================================

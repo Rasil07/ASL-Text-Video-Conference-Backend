@@ -13,6 +13,8 @@ import http from "http";
 import { Server } from "socket.io";
 
 import registerRoomHandlers from "./webRTC/roomHandler";
+import { registerMediaHandlers } from "./webRTC/media";
+
 // Load environment variables
 dotenv.config();
 
@@ -37,6 +39,7 @@ app.use(
       "http://127.0.0.1:3000",
       "http://127.0.0.1:3001",
       process.env.CORS_ORIGIN || "http://localhost:3000",
+      "https://truly-huge-viper.ngrok-free.app",
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -136,6 +139,7 @@ io.on("connection", (socket) => {
   console.log(`User connected: ${socket.decoded?.user?.id || "anonymous"}`);
   // registerMeeting(io, socket);
   registerRoomHandlers(io, socket);
+  registerMediaHandlers(io, socket);
 });
 
 // Start server

@@ -1,10 +1,14 @@
-import { Router, WebRtcTransport, Producer, Consumer } from "./types";
+import {
+  Router,
+  WebRtcTransport,
+  Producer,
+  Consumer,
+  RtpCapabilities,
+} from "./types";
 
-export type PeerId = string;
 export type MeetingId = string;
 
 export interface Peer {
-  peerId: PeerId;
   userId: string;
   userName: string;
   userEmail: string;
@@ -13,7 +17,8 @@ export interface Peer {
   isMuted: boolean;
   isVideoEnabled: boolean;
   joinedAt: Date;
-  sendTransport?: WebRtcTransport;
+  rtpCapabilities?: RtpCapabilities;
+  transports: Map<string, WebRtcTransport>;
   recvTransport?: WebRtcTransport;
   producers: Map<string, Producer>; // kind-keyed or track-id keyed
   consumers: Map<string, Consumer>; // producerId -> consumer
@@ -26,10 +31,18 @@ export interface RoomState {
   createdBy: string;
   createdAt: Date;
   router: Router;
-  peers: Map<PeerId, Peer>;
+  peers: Map<string, Peer>;
   status: "ongoing" | "ended" | "cancelled";
   hostName: string;
   hostEmail: string;
 }
 
 export const rooms = new Map<MeetingId, RoomState>();
+
+export const getPeer = (roomId: string, userId: string): Peer | undefined => {
+  const room = rooms.get(roomId);
+  if (!room) {
+    return undefined;
+  }
+  return room.peers.get(userId);
+};
